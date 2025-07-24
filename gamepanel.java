@@ -8,6 +8,12 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import javax.imageio.ImageIO;
 public class gamepanel extends JPanel implements Runnable{
+  //game loop set up variables
+  long lastFpsTime = System.currentTimeMillis();
+  int fps = 0;
+  int frames = 0;
+  
+  
   //variables
   Player player = new Player(0.0,0.0,10.0);
   Image playerfront;
@@ -46,17 +52,48 @@ public class gamepanel extends JPanel implements Runnable{
     loadimg();
   }
   @Override
-  public void run(){
-    while(gameThread != null){
-        update();
-        repaint();
-        try{Thread.sleep(1000/60);}catch(Exception e){System.out.println(e);}
+  public void run() {
+      final double TARGET_FPS = 60.0;
+      final double OPTIMAL_TIME = 1_000_000_000 / TARGET_FPS; // nanoseconds per frame
+
+      long previousTime = System.nanoTime();
+
+      long lastFpsCheck = System.currentTimeMillis();
+      int frames = 0;
+
+      while (gameThread != null) {
+          long currentTime = System.nanoTime();
+          double deltaTime = (currentTime - previousTime) / 1_000_000_000.0;
+          previousTime = currentTime;
+
+          update(deltaTime);
+          repaint();
+
+          frames++;
+          if (System.currentTimeMillis() - lastFpsCheck >= 1000) {
+              fps = frames;
+              frames = 0;
+              lastFpsCheck = System.currentTimeMillis();
+              
+          }
+
+          // Sleep until next frame
+          long frameTime = System.nanoTime() - currentTime;
+          long sleepTime = (long)(OPTIMAL_TIME - frameTime) / 1_000_000; // convert to ms
+
+          if (sleepTime > 0) {
+              try {
+                  Thread.sleep(sleepTime);
+              } catch (InterruptedException e) {
+                  e.printStackTrace();
+              }
+          }
       }
   }
 
   
   //update stuff
-  public void update(){
+  public void update(double deltaTime) {
 
     //MOUSE POSITION
     try {
@@ -74,23 +111,21 @@ public class gamepanel extends JPanel implements Runnable{
     }
 
 
-    if(keyH.uppress == true){
-      player.y-=3;
+    double moveSpeed = 180.0; // units per second
+
+    if (keyH.uppress) {
+        player.y -= moveSpeed * deltaTime;
     }
-    if(keyH.downpress == true){
-      player.y+=3;
+    if (keyH.downpress) {
+        player.y += moveSpeed * deltaTime;
     }
-    if(keyH.leftpress == true){
-      player.x-=3;
+    if (keyH.leftpress) {
+        player.x -= moveSpeed * deltaTime;
     }
-    if(keyH.rightpress == true){
-      player.x+=3;
+    if (keyH.rightpress) {
+        player.x += moveSpeed * deltaTime;
     }
-    if(mouseH.click == true){
-      System.out.println("click");
-      mouseH.click = false;
-    }
-    player.direction += 0.1;
+    player.direction += 0.1 * deltaTime * 60;
   }
 
   
@@ -104,6 +139,15 @@ public class gamepanel extends JPanel implements Runnable{
     //render player
     g2.drawImage(playerfront, (int) player.x, (int) player.y, null);
     g2.drawImage(playerfront, (int) mouseX,   (int) mouseY,   null);
+    
+
+    g2.setColor(Color.WHITE);
+    g2.setFont(new Font("Arial", Font.BOLD, 16));
+    g2.drawString("FPS: " + fps, 10, 20);
+
+
+
+
     g2.dispose();
   }
 }
